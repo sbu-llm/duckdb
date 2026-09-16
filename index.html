@@ -6,9 +6,9 @@
 <meta name="theme-color" content="#0a0e1a" />
 <title>DuckDB Studio</title>
 
-<!-- PyScript لوکال -->
-<link rel="stylesheet" href="./pyscript/core.css" />
-<script type="module" src="./pyscript/core.js"></script>
+<!-- PyScript از CDN -->
+<link rel="stylesheet" href="https://pyscript.net/releases/2025.5.1/core.css" />
+<script type="module" src="https://pyscript.net/releases/2025.5.1/core.js"></script>
 
 <style>
 /* ═══════════ themes ═══════════ */
@@ -593,8 +593,8 @@ window.setEditorValue = text => { ta.value = text; paint(); save(); };
 window.closeSidebar = closeSide;
 </script>
 
-<!-- ═════ engine: PyScript + Pyodide + DuckDB (local) ═════ -->
-<script type="py" config='{"packages":["micropip","duckdb"], "pyodide_url":"./pyscript/pyodide/pyodide.js"}'>
+<!-- ═════ engine: PyScript + Pyodide + DuckDB (CDN) ═════ -->
+<script type="py" config='{"packages":["micropip","duckdb"]}'>
 import html as H
 import time
 import duckdb
