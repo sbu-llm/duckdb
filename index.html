@@ -4,7 +4,7 @@
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
 <meta name="theme-color" content="#000000" />
-<title>DuckDB Studio · WASM</title>
+<title>DuckDB (SBU)</title>
 
 <!-- ✅ Service Worker -->
 <script>
@@ -1310,7 +1310,7 @@ async function bootDuckDB(){
 
     const DUCKDB = window.duckdb;
     if (!DUCKDB || typeof DUCKDB.selectBundle !== "function"){
-      throw new Error("DuckDB-WASM module did not load correctly (window.duckdb missing).");
+      throw new Error("DuckDB module did not load correctly (window.duckdb missing).");
     }
 
     // jsdelivr bundles
@@ -1331,12 +1331,12 @@ async function bootDuckDB(){
 
     $("#run-btn").disabled = false;
     setStatus("ready", "ok");
-    outEl.innerHTML = '<p class="msg">DuckDB-WASM is ready — press Run (or ⌘/Ctrl+Enter) to execute the query.</p>';
+    outEl.innerHTML = '<p class="msg">DuckDB is ready — press Run (or ⌘/Ctrl+Enter) to execute the query.</p>';
     await refreshSchema();
   } catch (e){
     console.error(e);
     setStatus("engine load failed", "err");
-    outEl.innerHTML = `<p class="msg err">Failed to load DuckDB-WASM:\n${esc(String(e.message || e))}</p>`;
+    outEl.innerHTML = `<p class="msg err">Failed to load DuckDB:\n${esc(String(e.message || e))}</p>`;
   }
 }
 
