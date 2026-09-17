@@ -308,15 +308,6 @@ details[open]>summary .caret{transform:rotate(90deg)}
 .ac-item{padding:6px 11px;cursor:pointer;color:var(--fg);white-space:nowrap}
 .ac-item.on,.ac-item:hover{background:var(--accent);color:var(--accent-fg)}
 
-/* drag & drop import overlay */
-.drop-overlay{
-  position:fixed;inset:0;z-index:90;background:rgba(10,14,26,.6);
-  display:flex;align-items:center;justify-content:center;
-}
-.drop-overlay .drop-msg{
-  padding:26px 36px;border:2px dashed var(--accent);border-radius:16px;
-  background:var(--panel);color:var(--fg);font-size:15px;font-weight:650;text-align:center;
-}
 .grab{cursor:row-resize;background:var(--bg);border-block:1px solid var(--line);touch-action:none}
 .grab::after{content:"";display:block;width:44px;height:3px;margin:2px auto;border-radius:2px;background:var(--line)}
 .grab:hover{background:var(--panel-2)}
@@ -452,7 +443,7 @@ body.zen .split{grid-template-rows:1fr 0 0}
             <button class="item" data-load="university"><span class="t">university<small>Students, courses & enrollments — practice JOIN and GROUP BY</small></span></button>
             <button class="item" data-load="experiment"><span class="t">experiment<small>600 observations in two groups — mean, std dev, correlation</small></span></button>
             <button class="item" data-load="weblog"><span class="t">weblog<small>2000 timestamped events — window functions and time series</small></span></button>
-            <button class="item" id="import-btn"><span class="t">Import CSV / Parquet…<small>Click to browse, or drag & drop a file anywhere on the page</small></span></button>
+            <button class="item" id="import-btn"><span class="t">Import CSV / Parquet…<small>Click to browse for a file</small></span></button>
           </div>
         </details>
 
@@ -538,9 +529,6 @@ body.zen .split{grid-template-rows:1fr 0 0}
 </div>
 
 <input type="file" id="file-input" accept=".csv,.parquet" multiple hidden />
-<div class="drop-overlay" id="drop-overlay" hidden>
-  <div class="drop-msg">📄 Drop a CSV or Parquet file to import it as a table</div>
-</div>
 
 <dialog id="help">
   <h2>Keyboard shortcuts</h2>
@@ -865,24 +853,9 @@ on($("#history-clear"), "click", e => {
 });
 renderHistory();
 
-/* ── CSV / Parquet import: file picker + drag & drop anywhere on the page ── */
-const fileInput = $("#file-input"), dropOverlay = $("#drop-overlay");
+/* ── CSV / Parquet import: file picker only ── */
+const fileInput = $("#file-input");
 on($("#import-btn"), "click", () => { fileInput.click(); closeSide(); });
-function triggerImport(fileList){
-  if (!fileList || !fileList.length) return;
-  fileInput.files = fileList;
-  fileInput.dispatchEvent(new Event("change"));
-}
-let dragDepth = 0;
-on(window, "dragenter", e => {
-  if (e.dataTransfer && [...e.dataTransfer.types].includes("Files")){ dragDepth++; dropOverlay.hidden = false; }
-});
-on(window, "dragover", e => e.preventDefault());
-on(window, "dragleave", () => { dragDepth = Math.max(0, dragDepth - 1); if (dragDepth === 0) dropOverlay.hidden = true; });
-on(window, "drop", e => {
-  e.preventDefault(); dragDepth = 0; dropOverlay.hidden = true;
-  if (e.dataTransfer && e.dataTransfer.files.length) triggerImport(e.dataTransfer.files);
-});
 
 /* resizable split (mouse + touch) */
 const split = $("#split"), grab = $("#grab");
