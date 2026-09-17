@@ -6,6 +6,17 @@
 <meta name="theme-color" content="#000000" />
 <title>DuckDB Studio (SBU)</title>
 
+<!-- ✅ Service Worker registration -->
+<script>
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js')
+      .then(r => console.log('SW registered:', r.scope))
+      .catch(e => console.warn('SW failed:', e));
+  });
+}
+</script>
+
 <!-- PyScript (local) -->
 <link rel="stylesheet" href="./pyscript/core.css" />
 <script type="module" src="./pyscript/core.js"></script>
