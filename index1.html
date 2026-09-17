@@ -1,0 +1,871 @@
+<!doctype html>
+<html lang="en" dir="ltr">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>DuckDB Studio</title>
+
+    <!-- PyScript لوکال -->
+    <link rel="stylesheet" href="./pyscript/core.css" />
+    <script type="module" src="./pyscript/core.js"></script>
+
+    <!-- فونت‌ها -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <style>
+        /* ============ TEMES ============ */
+        :root {
+            --bg: #0a0e1a;
+            --panel: #111827;
+            --panel-2: #1a2234;
+            --border: #1f2937;
+            --text: #e5e7eb;
+            --text-dim: #9ca3af;
+            --accent: #fbbf24;
+            --accent-2: #f59e0b;
+            --success: #86efac;
+            --error: #fca5a5;
+            --code-bg: #0d1424;
+            --code-text: #7dd3fc;
+            --table-head: #111827;
+            --table-row: #0f172a;
+            --table-row-hover: #1a2234;
+            --shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        [data-theme="light"] {
+            --bg: #f8fafc;
+            --panel: #ffffff;
+            --panel-2: #f1f5f9;
+            --border: #e2e8f0;
+            --text: #0f172a;
+            --text-dim: #64748b;
+            --accent: #f59e0b;
+            --accent-2: #d97706;
+            --success: #16a34a;
+            --error: #dc2626;
+            --code-bg: #f8fafc;
+            --code-text: #0284c7;
+            --table-head: #f1f5f9;
+            --table-row: #ffffff;
+            --table-row-hover: #f8fafc;
+            --shadow: 0 10px 30px rgba(0, 0, 0, 0.1);
+        }
+
+        [data-theme="ocean"] {
+            --bg: #0c1e2e;
+            --panel: #0f2a3f;
+            --panel-2: #143751;
+            --border: #1c4a6b;
+            --text: #d4f1f9;
+            --text-dim: #7fb8d0;
+            --accent: #22d3ee;
+            --accent-2: #06b6d4;
+            --success: #6ee7b7;
+            --error: #fca5a5;
+            --code-bg: #08151f;
+            --code-text: #67e8f9;
+            --table-head: #0f2a3f;
+            --table-row: #0c1e2e;
+            --table-row-hover: #143751;
+            --shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        [data-theme="purple"] {
+            --bg: #1a0b2e;
+            --panel: #241040;
+            --panel-2: #2e1550;
+            --border: #3d1f66;
+            --text: #ede9fe;
+            --text-dim: #a78bfa;
+            --accent: #c084fc;
+            --accent-2: #a855f7;
+            --success: #86efac;
+            --error: #fca5a5;
+            --code-bg: #150826;
+            --code-text: #d8b4fe;
+            --table-head: #241040;
+            --table-row: #1a0b2e;
+            --table-row-hover: #2e1550;
+            --shadow: 0 20px 50px rgba(0, 0, 0, 0.5);
+        }
+
+        [data-theme="matrix"] {
+            --bg: #000000;
+            --panel: #0a1a0a;
+            --panel-2: #0f240f;
+            --border: #1a3d1a;
+            --text: #d1fae5;
+            --text-dim: #4ade80;
+            --accent: #22c55e;
+            --accent-2: #16a34a;
+            --success: #4ade80;
+            --error: #fca5a5;
+            --code-bg: #000000;
+            --code-text: #4ade80;
+            --table-head: #0a1a0a;
+            --table-row: #000000;
+            --table-row-hover: #0f240f;
+            --shadow: 0 20px 50px rgba(34, 197, 94, 0.15);
+        }
+
+        /* ============ BASE ============ */
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            min-height: 100vh;
+            direction: ltr;
+            text-align: left;
+            transition: background 0.3s, color 0.3s;
+            overflow-x: hidden;
+        }
+
+        /* ============ TOPBAR ============ */
+        .topbar {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 20px;
+            background: var(--panel);
+            border-bottom: 1px solid var(--border);
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            backdrop-filter: blur(10px);
+            gap: 12px;
+            flex-wrap: wrap;
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            font-weight: 700;
+            font-size: 1rem;
+            color: var(--text);
+        }
+
+        .brand .logo {
+            width: 28px;
+            height: 28px;
+            border-radius: 8px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 16px;
+            box-shadow: 0 0 20px rgba(251, 191, 36, 0.3);
+        }
+
+        .brand .sub {
+            font-size: 0.7rem;
+            color: var(--text-dim);
+            font-weight: 400;
+            margin-left: 4px;
+        }
+
+        .top-actions {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            flex-wrap: wrap;
+        }
+
+        .theme-picker {
+            display: flex;
+            gap: 4px;
+            padding: 4px;
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+        }
+
+        .theme-btn {
+            width: 22px;
+            height: 22px;
+            border-radius: 6px;
+            border: 2px solid transparent;
+            cursor: pointer;
+            transition: all 0.2s;
+            padding: 0;
+        }
+        .theme-btn:hover { transform: scale(1.15); }
+        .theme-btn.active { border-color: var(--accent); }
+
+        .theme-btn[data-t="dark"]   { background: linear-gradient(135deg, #0a0e1a, #1f2937); }
+        .theme-btn[data-t="light"]  { background: linear-gradient(135deg, #ffffff, #e2e8f0); }
+        .theme-btn[data-t="ocean"]  { background: linear-gradient(135deg, #0c1e2e, #22d3ee); }
+        .theme-btn[data-t="purple"] { background: linear-gradient(135deg, #1a0b2e, #c084fc); }
+        .theme-btn[data-t="matrix"] { background: linear-gradient(135deg, #000000, #22c55e); }
+
+        .icon-btn {
+            width: 34px;
+            height: 34px;
+            border-radius: 8px;
+            border: 1px solid var(--border);
+            background: var(--panel-2);
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 14px;
+            transition: all 0.2s;
+            padding: 0;
+        }
+        .icon-btn:hover { background: var(--border); color: var(--accent); }
+
+        .status-pill {
+            font-size: 0.7rem;
+            padding: 5px 10px;
+            border-radius: 999px;
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            color: var(--text-dim);
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .status-pill .dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background: var(--text-dim);
+        }
+        .status-pill.ok .dot { background: var(--success); box-shadow: 0 0 8px var(--success); }
+        .status-pill.err .dot { background: var(--error); box-shadow: 0 0 8px var(--error); }
+
+        /* ============ LAYOUT ============ */
+        .layout {
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 16px;
+            padding: 16px;
+            max-width: 1600px;
+            margin: 0 auto;
+            min-height: calc(100vh - 60px);
+        }
+
+        .main-col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+
+        /* ============ EDITOR ============ */
+        .editor-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            flex: 1;
+            transition: all 0.3s;
+        }
+
+        .editor-card.fullscreen {
+            position: fixed;
+            inset: 0;
+            z-index: 1000;
+            border-radius: 0;
+            margin: 0;
+        }
+
+        .editor-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: var(--panel-2);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .window-dots { display: flex; gap: 6px; }
+        .window-dots span {
+            width: 11px; height: 11px; border-radius: 50%;
+        }
+        .window-dots span:nth-child(1) { background: #ef4444; }
+        .window-dots span:nth-child(2) { background: #fbbf24; }
+        .window-dots span:nth-child(3) { background: #22c55e; }
+
+        .editor-title {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .editor-title .badge {
+            font-size: 0.65rem;
+            padding: 2px 6px;
+            border-radius: 4px;
+            background: var(--accent);
+            color: #000;
+            font-weight: 700;
+            text-transform: none;
+            letter-spacing: 0;
+        }
+
+        .editor-tools {
+            display: flex;
+            gap: 6px;
+        }
+
+        .tool-btn {
+            width: 28px;
+            height: 28px;
+            border-radius: 6px;
+            border: 1px solid var(--border);
+            background: transparent;
+            color: var(--text-dim);
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 13px;
+            transition: all 0.2s;
+            padding: 0;
+        }
+        .tool-btn:hover { background: var(--panel); color: var(--accent); border-color: var(--accent); }
+
+        textarea {
+            width: 100%;
+            flex: 1;
+            min-height: 320px;
+            background: var(--code-bg);
+            color: var(--code-text);
+            border: none;
+            padding: 18px 20px;
+            font-family: 'JetBrains Mono', Consolas, monospace;
+            font-size: 14px;
+            line-height: 1.7;
+            resize: none;
+            outline: none;
+            direction: ltr;
+            text-align: left;
+            transition: font-size 0.2s, background 0.3s;
+        }
+
+        textarea::placeholder { color: var(--text-dim); opacity: 0.5; }
+
+        textarea.zoomed { font-size: 18px; }
+
+        .editor-footer {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            padding: 10px 14px;
+            background: var(--panel-2);
+            border-top: 1px solid var(--border);
+        }
+
+        .btn {
+            padding: 9px 18px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            font-family: inherit;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: #000;
+        }
+        .btn-primary:hover {
+            background: var(--accent-2);
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(251, 191, 36, 0.3);
+        }
+
+        .btn-ghost {
+            background: transparent;
+            color: var(--text-dim);
+            border: 1px solid var(--border);
+        }
+        .btn-ghost:hover { background: var(--panel); color: var(--text); }
+
+        .btn .kbd {
+            font-size: 0.65rem;
+            padding: 2px 5px;
+            border-radius: 4px;
+            background: rgba(0,0,0,0.2);
+            font-family: 'JetBrains Mono', monospace;
+        }
+
+        .spacer { flex: 1; }
+
+        /* ============ RESULT ============ */
+        .result-card {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            overflow: hidden;
+            box-shadow: var(--shadow);
+        }
+
+        .result-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 10px 14px;
+            background: var(--panel-2);
+            border-bottom: 1px solid var(--border);
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            font-weight: 600;
+        }
+
+        #output {
+            padding: 16px;
+            font-family: 'JetBrains Mono', Consolas, monospace;
+            font-size: 13px;
+            color: var(--success);
+            white-space: pre-wrap;
+            word-break: break-word;
+            min-height: 80px;
+            max-height: 400px;
+            overflow: auto;
+            direction: ltr;
+            text-align: left;
+        }
+        #output.error { color: var(--error); }
+
+        /* ============ TABLE ============ */
+        .table-wrap {
+            overflow: auto;
+            border-radius: 10px;
+            border: 1px solid var(--border);
+            max-height: 400px;
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 13px;
+        }
+        thead th {
+            background: var(--table-head);
+            color: var(--accent);
+            text-align: left;
+            padding: 10px 14px;
+            font-weight: 600;
+            border-bottom: 2px solid var(--border);
+            position: sticky;
+            top: 0;
+            white-space: nowrap;
+            z-index: 1;
+        }
+        tbody td {
+            padding: 8px 14px;
+            color: var(--text);
+            border-bottom: 1px solid var(--border);
+            font-family: 'JetBrains Mono', Consolas, monospace;
+            white-space: nowrap;
+        }
+        tbody tr { background: var(--table-row); }
+        tbody tr:hover { background: var(--table-row-hover); }
+        tbody tr:last-child td { border-bottom: none; }
+
+        /* ============ SIDEBAR ============ */
+        .sidebar {
+            background: var(--panel);
+            border: 1px solid var(--border);
+            border-radius: 14px;
+            padding: 14px;
+            box-shadow: var(--shadow);
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            max-height: calc(100vh - 92px);
+            position: sticky;
+            top: 76px;
+            overflow: hidden;
+        }
+
+        .sidebar-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--text-dim);
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .sidebar-title .count {
+            background: var(--accent);
+            color: #000;
+            font-size: 0.65rem;
+            padding: 1px 6px;
+            border-radius: 999px;
+            font-weight: 700;
+        }
+
+        .table-list {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            overflow-y: auto;
+            flex: 1;
+            padding-right: 4px;
+        }
+
+        .table-item {
+            padding: 8px 10px;
+            border-radius: 8px;
+            background: var(--panel-2);
+            border: 1px solid var(--border);
+            cursor: pointer;
+            transition: all 0.2s;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 0.8rem;
+            color: var(--text);
+            font-family: 'JetBrains Mono', monospace;
+        }
+        .table-item:hover {
+            border-color: var(--accent);
+            background: var(--table-row-hover);
+        }
+        .table-item .icon { color: var(--accent); font-size: 14px; }
+        .table-item .name { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+        .empty-msg {
+            color: var(--text-dim);
+            font-size: 0.8rem;
+            text-align: center;
+            padding: 20px 10px;
+            line-height: 1.6;
+        }
+
+        /* ============ HINT ============ */
+        .hint {
+            font-size: 0.75rem;
+            color: var(--text-dim);
+            line-height: 1.6;
+        }
+        .hint code {
+            background: var(--panel-2);
+            padding: 2px 6px;
+            border-radius: 4px;
+            color: var(--code-text);
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.7rem;
+        }
+
+        /* ============ RESPONSIVE ============ */
+        @media (max-width: 900px) {
+            .layout { grid-template-columns: 1fr; }
+            .sidebar { position: static; max-height: 300px; }
+        }
+    </style>
+</head>
+<body data-theme="dark">
+
+    <!-- ============ TOPBAR ============ -->
+    <div class="topbar">
+        <div class="brand">
+            <div class="logo">🦆</div>
+            <span>DuckDB Studio</span>
+            <span class="sub">v1.0</span>
+        </div>
+
+        <div class="top-actions">
+            <div class="theme-picker" id="theme-picker">
+                <button class="theme-btn active" data-t="dark"   title="Dark"></button>
+                <button class="theme-btn" data-t="light"  title="Light"></button>
+                <button class="theme-btn" data-t="ocean"  title="Ocean"></button>
+                <button class="theme-btn" data-t="purple" title="Purple"></button>
+                <button class="theme-btn" data-t="matrix" title="Matrix"></button>
+            </div>
+
+            <div class="status-pill" id="status-pill">
+                <span class="dot"></span>
+                <span id="status-text">Booting…</span>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ LAYOUT ============ -->
+    <div class="layout">
+        <div class="main-col">
+
+            <!-- EDITOR -->
+            <div class="editor-card" id="editor-card">
+                <div class="editor-header">
+                    <div class="window-dots">
+                        <span></span><span></span><span></span>
+                    </div>
+                    <div class="editor-title">
+                        query.sql <span class="badge">LIVE</span>
+                    </div>
+                    <div class="editor-tools">
+                        <button class="tool-btn" id="zoom-btn" title="Toggle font size">🔍</button>
+                        <button class="tool-btn" id="fullscreen-btn" title="Fullscreen">⛶</button>
+                    </div>
+                </div>
+
+                <textarea id="sql-input" spellcheck="false" placeholder="-- Write your SQL here...">-- Create a table
+CREATE TABLE students (
+    id INTEGER,
+    name VARCHAR,
+    grade INTEGER
+);
+
+-- Insert some rows
+INSERT INTO students VALUES
+    (1, 'Ali', 18),
+    (2, 'Sara', 20),
+    (3, 'Reza', 15),
+    (4, 'Mina', 19);
+
+-- Query it
+SELECT * FROM students ORDER BY grade DESC;</textarea>
+
+                <div class="editor-footer">
+                    <button class="btn btn-primary" id="run-btn">
+                        ▶ Run <span class="kbd">Ctrl+Enter</span>
+                    </button>
+                    <button class="btn btn-ghost" id="clear-btn">✕ Clear</button>
+                    <div class="spacer"></div>
+                    <button class="btn btn-ghost" id="format-btn">⌘ Format</button>
+                </div>
+            </div>
+
+            <!-- RESULT -->
+            <div class="result-card">
+                <div class="result-header">
+                    <span>📊 Result</span>
+                    <span id="row-count" style="text-transform:none; letter-spacing:0;">—</span>
+                </div>
+                <div id="output">Run a query to see results.</div>
+            </div>
+        </div>
+
+        <!-- SIDEBAR -->
+        <div class="sidebar">
+            <div class="sidebar-title">
+                🗂 Tables <span class="count" id="table-count">0</span>
+            </div>
+            <div class="table-list" id="table-list">
+                <div class="empty-msg">No tables yet.<br>Run a <code style="background:transparent;color:var(--accent);">CREATE TABLE</code> query to see them here.</div>
+            </div>
+            <div class="hint">
+                💡 Click a table name to insert <code>SELECT * FROM ...</code>
+            </div>
+        </div>
+    </div>
+
+    <!-- ============ PYTHON ============ -->
+    <script type="py" config='{"packages":["micropip","duckdb"], "pyodide_url":"./pyscript/pyodide/pyodide.js"}'>
+        import duckdb
+        import micropip
+        import json
+        from pyscript import document, when
+        from pyodide.ffi import create_proxy
+
+        last_result = {"columns": [], "rows": []}
+
+        # ─── Status helpers ───
+        def set_status(msg, kind=""):
+            pill = document.getElementById("status-pill")
+            pill.className = "status-pill " + kind
+            document.getElementById("status-text").innerText = msg
+
+        def set_row_count(msg):
+            document.getElementById("row-count").innerText = msg
+
+        # ─── Table management ───
+        def refresh_tables():
+            try:
+                tables = duckdb.sql("SHOW TABLES").fetchall()
+                list_el = document.getElementById("table-list")
+                count_el = document.getElementById("table-count")
+
+                names = [t[0] for t in tables]
+                count_el.innerText = str(len(names))
+
+                if not names:
+                    list_el.innerHTML = '<div class="empty-msg">No tables yet.<br>Run a <code style="background:transparent;color:var(--accent);">CREATE TABLE</code> query to see them here.</div>'
+                    return
+
+                html = ""
+                for name in names:
+                    html += f'<div class="table-item" data-name="{name}"><span class="icon">▤</span><span class="name">{name}</span></div>'
+                list_el.innerHTML = html
+
+                # اضافه کردن event listener به هر آیتم
+                for item in list_el.querySelectorAll(".table-item"):
+                    item.addEventListener("click", create_proxy(on_table_click))
+            except Exception:
+                pass
+
+        def on_table_click(event):
+            name = event.currentTarget.getAttribute("data-name")
+            ta = document.getElementById("sql-input")
+            ta.value = f"SELECT * FROM {name} LIMIT 100;"
+            ta.focus()
+
+        # ─── Split statements ───
+        def split_statements(sql):
+            stmts, current, in_quote, quote_char = [], [], False, ""
+            for ch in sql:
+                if ch in ("'", '"') and not in_quote:
+                    in_quote, quote_char = True, ch
+                elif ch == quote_char and in_quote:
+                    in_quote, quote_char = False, ""
+                if ch == ";" and not in_quote:
+                    s = "".join(current).strip()
+                    if s:
+                        stmts.append(s)
+                    current = []
+                else:
+                    current.append(ch)
+            s = "".join(current).strip()
+            if s:
+                stmts.append(s)
+            return stmts
+
+        # ─── Render table ───
+        def render_table(columns, rows):
+            html = ['<div class="table-wrap"><table><thead><tr>']
+            for col in columns:
+                html.append(f"<th>{col}</th>")
+            html.append("</tr></thead><tbody>")
+            for row in rows:
+                html.append("<tr>")
+                for cell in row:
+                    val = "" if cell is None else str(cell)
+                    html.append(f"<td>{val}</td>")
+                html.append("</tr>")
+            html.append("</tbody></table></div>")
+            return "".join(html)
+
+        # ─── Run query ───
+        def run_query(event=None):
+            global last_result
+
+            sql = document.getElementById("sql-input").value.strip()
+            output = document.getElementById("output")
+            output.classList.remove("error")
+
+            if not sql:
+                output.innerText = "Please enter a query."
+                output.classList.add("error")
+                set_status("Empty query", "err")
+                set_row_count("—")
+                return
+
+            set_status("Running…", "")
+
+            try:
+                statements = split_statements(sql)
+                last_rows, last_cols = [], []
+
+                for stmt in statements:
+                    result = duckdb.sql(stmt)
+                    if result is not None and result.columns:
+                        cols = result.columns
+                        rows = result.fetchall()
+                        last_cols, last_rows = list(cols), [list(r) for r in rows]
+
+                if last_cols:
+                    last_result = {"columns": last_cols, "rows": last_rows}
+                    output.innerHTML = render_table(last_cols, last_rows)
+                    set_row_count(f"{len(last_rows)} row(s) × {len(last_cols)} col(s)")
+                    set_status(f"OK — {len(last_rows)} rows", "ok")
+                else:
+                    output.innerText = "✓ Statements executed successfully. (no result set)"
+                    last_result = {"columns": [], "rows": []}
+                    set_row_count("0 rows")
+                    set_status("OK", "ok")
+
+                refresh_tables()
+
+            except Exception as e:
+                output.classList.add("error")
+                output.innerText = f"✗ Error: {e}"
+                set_row_count("—")
+                set_status("Error", "err")
+
+        # ─── Clear ───
+        def clear_output(event=None):
+            global last_result
+            document.getElementById("output").innerHTML = "Cleared."
+            document.getElementById("output").classList.remove("error")
+            last_result = {"columns": [], "rows": []}
+            set_row_count("—")
+            set_status("Ready", "")
+
+        # ─── Format ───
+        def format_sql(event=None):
+            try:
+                import sqlparse
+                raw = document.getElementById("sql-input").value
+                formatted = sqlparse.format(raw, reindent=True, keyword_case="upper")
+                document.getElementById("sql-input").value = formatted
+            except Exception:
+                pass
+
+        # ─── Wire up events ───
+        document.getElementById("run-btn").addEventListener("click", create_proxy(run_query))
+        document.getElementById("clear-btn").addEventListener("click", create_proxy(clear_output))
+        document.getElementById("format-btn").addEventListener("click", create_proxy(format_sql))
+
+        def on_key(event):
+            if event.ctrlKey and event.key == "Enter":
+                event.preventDefault()
+                run_query()
+
+        document.getElementById("sql-input").addEventListener("keydown", create_proxy(on_key))
+
+        # ─── Zoom ───
+        def toggle_zoom(event=None):
+            document.getElementById("sql-input").classList.toggle("zoomed")
+
+        document.getElementById("zoom-btn").addEventListener("click", create_proxy(toggle_zoom))
+
+        # ─── Fullscreen ───
+        def toggle_fullscreen(event=None):
+            document.getElementById("editor-card").classList.toggle("fullscreen")
+
+        document.getElementById("fullscreen-btn").addEventListener("click", create_proxy(toggle_fullscreen))
+
+        # ─── Themes ───
+        def set_theme(name):
+            document.body.setAttribute("data-theme", name)
+            for b in document.querySelectorAll(".theme-btn"):
+                b.classList.remove("active")
+            document.querySelector(f'.theme-btn[data-t="{name}"]').classList.add("active")
+
+        def on_theme_click(event):
+            set_theme(event.currentTarget.getAttribute("data-t"))
+
+        for b in document.querySelectorAll(".theme-btn"):
+            b.addEventListener("click", create_proxy(on_theme_click))
+
+        # ─── Init ───
+        set_status("Ready", "ok")
+        document.getElementById("output").innerText = "Python engine loaded. Run a query!"
+    </script>
+</body>
+</html>
