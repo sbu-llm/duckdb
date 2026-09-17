@@ -1,0 +1,875 @@
+<!doctype html>
+<html lang="en" dir="ltr" data-theme="dark">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<meta name="theme-color" content="#0a0e1a" />
+<title>DuckDB Studio</title>
+
+<!-- PyScript لوکال -->
+<link rel="stylesheet" href="./pyscript/core.css" />
+<script type="module" src="./pyscript/core.js"></script>
+
+<style>
+/* ═══════════ themes ═══════════ */
+:root{
+  --code-fs:15px;
+  --mono:"JetBrains Mono","Fira Code","SF Mono",Consolas,ui-monospace,monospace;
+  --sans:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Inter,Tahoma,sans-serif;
+}
+[data-theme="dark"]{
+  --bg:#0a0e1a; --panel:#111827; --panel-2:#161f31; --line:#222f45;
+  --fg:#e5e7eb; --dim:#94a3b8; --accent:#fbbf24; --accent-fg:#0a0e1a;
+  --code:#dbe4f0; --kw:#fbbf24; --str:#86efac; --num:#7dd3fc; --cmt:#64748b;
+  --ok:#86efac; --err:#fca5a5; --sel:#1f2b40;
+}
+[data-theme="light"]{
+  --bg:#f4f6fa; --panel:#ffffff; --panel-2:#f7f9fc; --line:#e2e7ef;
+  --fg:#0f172a; --dim:#64748b; --accent:#d97706; --accent-fg:#ffffff;
+  --code:#1e293b; --kw:#b45309; --str:#15803d; --num:#1d4ed8; --cmt:#94a3b8;
+  --ok:#15803d; --err:#b91c1c; --sel:#e6ecf6;
+}
+[data-theme="ocean"]{
+  --bg:#08151f; --panel:#0f2a3f; --panel-2:#123147; --line:#1c4a6b;
+  --fg:#d4f1f9; --dim:#7fb8d0; --accent:#22d3ee; --accent-fg:#06202c;
+  --code:#d4f1f9; --kw:#22d3ee; --str:#6ee7b7; --num:#fbbf24; --cmt:#5f92a8;
+  --ok:#6ee7b7; --err:#fca5a5; --sel:#173d58;
+}
+[data-theme="purple"]{
+  --bg:#150826; --panel:#241040; --panel-2:#2a1349; --line:#3d1f66;
+  --fg:#ede9fe; --dim:#a78bfa; --accent:#c084fc; --accent-fg:#1c0a33;
+  --code:#ede9fe; --kw:#c084fc; --str:#86efac; --num:#fbbf24; --cmt:#8b6fd4;
+  --ok:#86efac; --err:#fca5a5; --sel:#33195a;
+}
+[data-theme="matrix"]{
+  --bg:#000000; --panel:#0a1a0a; --panel-2:#0d210d; --line:#1a3d1a;
+  --fg:#d1fae5; --dim:#4ade80; --accent:#22c55e; --accent-fg:#02150a;
+  --code:#d1fae5; --kw:#22c55e; --str:#4ade80; --num:#a7f3d0; --cmt:#2f7a45;
+  --ok:#4ade80; --err:#fca5a5; --sel:#123512;
+}
+
+*{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%}
+body{
+  background:var(--bg);color:var(--fg);font-family:var(--sans);font-size:14px;
+  overflow:hidden;-webkit-text-size-adjust:100%;
+}
+button,select,input,textarea{font-family:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+::-webkit-scrollbar{width:10px;height:10px}
+::-webkit-scrollbar-thumb{background:var(--line);border-radius:6px}
+::-webkit-scrollbar-track{background:transparent}
+
+.app{height:100vh;height:100dvh;display:flex;flex-direction:column}
+
+/* ═══════════ top bar ═══════════ */
+.bar{
+  display:flex;align-items:center;gap:10px;flex:0 0 auto;
+  height:56px;padding:0 12px;padding-top:env(safe-area-inset-top);
+  background:var(--panel);border-bottom:1px solid var(--line);
+}
+.brand{display:flex;align-items:center;gap:9px;min-width:0}
+.duck{
+  width:32px;height:32px;flex:0 0 auto;border-radius:10px;display:grid;place-items:center;
+  font-size:18px;background:var(--panel-2);border:1px solid var(--line);
+}
+.brand b{font-weight:700;letter-spacing:-.01em;display:block;line-height:1.2;font-size:15px}
+.brand small{display:block;font-size:11px;color:var(--dim)}
+.spacer{flex:1}
+
+.swatches{display:flex;gap:5px;padding:4px;background:var(--panel-2);border:1px solid var(--line);border-radius:10px}
+.sw{width:22px;height:22px;border-radius:6px;border:2px solid transparent;cursor:pointer;transition:transform .15s}
+.sw:hover{transform:scale(1.12)}
+.sw.on{border-color:var(--accent)}
+.sw[data-t="dark"]{background:linear-gradient(135deg,#0a0e1a,#334155)}
+.sw[data-t="light"]{background:linear-gradient(135deg,#ffffff,#cbd5e1)}
+.sw[data-t="ocean"]{background:linear-gradient(135deg,#08151f,#22d3ee)}
+.sw[data-t="purple"]{background:linear-gradient(135deg,#150826,#c084fc)}
+.sw[data-t="matrix"]{background:linear-gradient(135deg,#000000,#22c55e)}
+
+.pill{
+  display:flex;align-items:center;gap:7px;height:30px;padding:0 11px;border-radius:999px;
+  background:var(--panel-2);border:1px solid var(--line);color:var(--dim);
+  font-size:11.5px;font-family:var(--mono);white-space:nowrap;
+}
+.pill .dot{width:7px;height:7px;border-radius:50%;background:var(--dim);flex:0 0 auto}
+.pill.ok .dot{background:var(--ok);box-shadow:0 0 8px var(--ok)}
+.pill.ok{color:var(--ok)}
+.pill.err .dot{background:var(--err);box-shadow:0 0 8px var(--err)}
+.pill.err{color:var(--err)}
+
+.icon{
+  background:transparent;border:1px solid var(--line);border-radius:9px;cursor:pointer;color:var(--dim);
+  width:34px;height:34px;display:grid;place-items:center;font-size:14px;transition:.15s;flex:0 0 auto;
+}
+.icon:hover{background:var(--panel-2);color:var(--accent);border-color:var(--accent)}
+.btn{
+  border:0;border-radius:9px;height:34px;padding:0 15px;cursor:pointer;
+  font-size:13px;font-weight:650;display:flex;align-items:center;gap:7px;white-space:nowrap;
+}
+.primary{background:var(--accent);color:var(--accent-fg)}
+.primary:hover{filter:brightness(1.08)}
+.ghost{background:transparent;border:1px solid var(--line);color:var(--dim)}
+.ghost:hover{background:var(--panel-2);color:var(--fg)}
+.kbd{font-family:var(--mono);font-size:10.5px;opacity:.6}
+
+/* ═══════════ workspace ═══════════ */
+.work{flex:1;min-height:0;display:grid;grid-template-columns:270px 1fr}
+aside{background:var(--panel);border-right:1px solid var(--line);display:flex;flex-direction:column;min-height:0}
+.side-scroll{flex:1;overflow:auto;-webkit-overflow-scrolling:touch;padding-bottom:20px}
+details.sec{border-bottom:1px solid var(--line)}
+details.sec>summary{
+  list-style:none;cursor:pointer;padding:12px 13px;display:flex;align-items:center;gap:8px;
+  font-size:12.5px;font-weight:650;color:var(--dim);
+}
+details.sec>summary::-webkit-details-marker{display:none}
+details.sec>summary:hover{color:var(--fg)}
+summary .caret{font-size:9px;transition:transform .15s;color:var(--dim)}
+details[open]>summary .caret{transform:rotate(90deg)}
+.badge{background:var(--accent);color:var(--accent-fg);font-size:10.5px;font-weight:700;padding:1px 7px;border-radius:999px}
+.sec-body{padding:0 8px 12px}
+.empty{padding:10px 8px;color:var(--dim);font-size:12.5px;line-height:1.8}
+.empty code{font-family:var(--mono);background:var(--panel-2);padding:1px 5px;border-radius:4px;color:var(--accent)}
+
+.item{
+  width:100%;display:flex;align-items:center;gap:8px;text-align:left;cursor:pointer;
+  background:transparent;border:0;border-radius:9px;padding:9px 9px;font-size:13px;color:var(--fg);
+}
+.item:hover{background:var(--panel-2)}
+.item .t{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.item .t small{display:block;white-space:normal;font-size:11px;color:var(--dim);margin-top:2px;line-height:1.55}
+.item .n{font-family:var(--mono);font-size:11px;color:var(--dim)}
+.item .caret{width:10px;font-size:9px;color:var(--dim);transition:transform .15s}
+.tbl.open .caret{transform:rotate(90deg)}
+.tbl .t{font-weight:600;font-family:var(--mono);font-size:12.5px}
+.cols{display:none;padding:0 0 8px 27px}
+.tbl.open .cols{display:block}
+.col{display:flex;justify-content:space-between;gap:10px;padding:3px 6px;font-family:var(--mono);font-size:11.5px}
+.col em{font-style:normal;color:var(--dim)}
+.peek{opacity:0;border:0;background:transparent;color:var(--dim);font-size:11px;padding:3px 7px;border-radius:6px;cursor:pointer}
+.item:hover .peek{opacity:1}
+.peek:hover{background:var(--accent);color:var(--accent-fg)}
+
+/* ═══════════ editor ═══════════ */
+.split{display:grid;grid-template-rows:var(--eh,58%) 8px 1fr;min-height:0}
+.pane{display:flex;flex-direction:column;min-height:0;background:var(--panel)}
+.tabs{
+  display:flex;align-items:center;gap:3px;height:40px;padding:0 8px;flex:0 0 auto;overflow-x:auto;
+  background:var(--panel-2);border-bottom:1px solid var(--line);
+}
+.tabs::-webkit-scrollbar{height:0}
+.tab{
+  display:flex;align-items:center;gap:7px;height:29px;padding:0 11px;border-radius:8px;border:0;
+  background:transparent;cursor:pointer;color:var(--dim);white-space:nowrap;
+  font-family:var(--mono);font-size:12.5px;
+}
+.tab:hover{background:var(--panel)}
+.tab.on{background:var(--panel);color:var(--fg);box-shadow:inset 0 0 0 1px var(--line)}
+.tab .x{opacity:.45;font-size:14px}
+.tab .x:hover{opacity:1;color:var(--err)}
+
+.code{flex:1;min-height:0;display:flex;overflow:hidden;position:relative}
+#gutter{
+  padding:14px 10px 14px 14px;text-align:right;user-select:none;white-space:pre;overflow:hidden;flex:0 0 auto;
+  font-family:var(--mono);font-size:var(--code-fs);line-height:1.7;color:var(--dim);opacity:.45;
+}
+.edit-wrap{position:relative;flex:1;min-width:0}
+#hl,#sql{
+  position:absolute;inset:0;margin:0;border:0;
+  padding:14px 16px 14px 4px;white-space:pre;overflow:auto;
+  font-family:var(--mono);font-size:var(--code-fs);line-height:1.7;
+  tab-size:4;
+}
+#hl{pointer-events:none;overflow:hidden;color:var(--code)}
+#hl .k{color:var(--kw);font-weight:600}
+#hl .s{color:var(--str)}
+#hl .n{color:var(--num)}
+#hl .c{color:var(--cmt);font-style:italic}
+#sql{
+  background:transparent;color:transparent;-webkit-text-fill-color:transparent;
+  caret-color:var(--accent);resize:none;outline:0;
+}
+#sql::selection{background:var(--sel);-webkit-text-fill-color:var(--fg)}
+.grab{cursor:row-resize;background:var(--bg);border-block:1px solid var(--line);touch-action:none}
+.grab::after{content:"";display:block;width:44px;height:3px;margin:2px auto;border-radius:2px;background:var(--line)}
+.grab:hover{background:var(--panel-2)}
+
+/* ═══════════ result ═══════════ */
+.pane-head{
+  display:flex;align-items:center;gap:9px;height:40px;padding:0 12px;flex:0 0 auto;
+  background:var(--panel-2);border-bottom:1px solid var(--line);font-size:12.5px;color:var(--dim);
+}
+#output{flex:1;min-height:0;overflow:auto;-webkit-overflow-scrolling:touch}
+.msg{padding:16px;font-family:var(--mono);font-size:13px;color:var(--dim);line-height:1.8;white-space:pre-wrap}
+.msg.err{color:var(--err)}
+table{border-collapse:collapse;font-size:13px;width:100%}
+thead th{
+  position:sticky;top:0;z-index:1;background:var(--panel-2);color:var(--accent);
+  text-align:left;padding:9px 14px;font-weight:650;white-space:nowrap;border-bottom:1px solid var(--line);
+}
+thead th em{display:block;font-style:normal;font-weight:400;color:var(--dim);font-family:var(--mono);font-size:10.5px}
+tbody td{padding:7px 14px;border-bottom:1px solid var(--line);font-family:var(--mono);white-space:nowrap}
+tbody td.num{text-align:right}
+tbody td.null{color:var(--dim);font-style:italic}
+tbody tr:hover td{background:var(--panel-2)}
+
+/* ═══════════ modal ═══════════ */
+dialog{
+  border:1px solid var(--line);border-radius:16px;background:var(--panel);color:var(--fg);
+  padding:22px;max-width:440px;width:92%;box-shadow:0 24px 60px rgba(0,0,0,.5);
+}
+dialog::backdrop{background:rgba(0,0,0,.55)}
+dialog h2{font-size:15px;margin-bottom:14px}
+dialog dl{display:grid;grid-template-columns:auto 1fr;gap:9px 16px;font-size:13px}
+dialog dt{font-family:var(--mono);color:var(--accent);white-space:nowrap}
+dialog dd{color:var(--dim)}
+dialog .btn{margin-top:18px}
+
+/* ═══════════ zen ═══════════ */
+body.zen aside,body.zen .grab,body.zen .result{display:none}
+body.zen .work{grid-template-columns:1fr}
+body.zen .split{grid-template-rows:1fr 0 0}
+
+/* ═══════════ mobile ═══════════ */
+#side-toggle,#scrim,.m-only{display:none}
+@media (max-width:900px){
+  .bar{height:52px;gap:8px;padding:0 10px}
+  .brand small{display:none}
+  .brand b{font-size:14px}
+  #side-toggle{display:grid}
+  .m-hide{display:none}
+  .work{grid-template-columns:1fr}
+  aside{
+    position:fixed;top:0;bottom:0;left:0;width:84%;max-width:320px;z-index:60;
+    padding-top:env(safe-area-inset-top);
+    transform:translateX(-102%);transition:transform .22s ease;
+    box-shadow:0 0 60px rgba(0,0,0,.5);
+  }
+  body.side-open aside{transform:none}
+  #scrim{display:block;position:fixed;inset:0;z-index:50;background:rgba(0,0,0,.5);
+         opacity:0;pointer-events:none;transition:opacity .2s}
+  body.side-open #scrim{opacity:1;pointer-events:auto}
+  .split{grid-template-rows:var(--eh-m,50%) 10px 1fr}
+  .grab{height:10px}
+  .item{padding:11px 9px}
+  .icon{width:36px;height:36px}
+  #sql,#hl{padding:12px 12px 12px 4px}
+  #gutter{padding:12px 8px 12px 10px}
+  .pane-head,.tabs{height:42px}
+  .m-only{display:grid}
+  .mbar{
+    display:flex;gap:8px;align-items:center;flex:0 0 auto;padding:8px 10px;
+    padding-bottom:calc(8px + env(safe-area-inset-bottom));
+    background:var(--panel-2);border-top:1px solid var(--line);
+  }
+  .mbar .btn{flex:1;justify-content:center;height:40px}
+}
+@media (min-width:901px){ .mbar{display:none} }
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+
+<body>
+<div class="app" id="app">
+
+  <header class="bar">
+    <button class="icon" id="side-toggle" title="Tables">☰</button>
+    <div class="brand">
+      <span class="duck">🦆</span>
+      <span><b>DuckDB Studio</b><small>SQL in your browser · DuckDB + Pyodide</small></span>
+    </div>
+    <div class="spacer"></div>
+
+    <div class="swatches" id="swatches">
+      <button class="sw on" data-t="dark" title="Dark"></button>
+      <button class="sw" data-t="light" title="Light"></button>
+      <button class="sw" data-t="ocean" title="Ocean"></button>
+      <button class="sw" data-t="purple" title="Purple"></button>
+      <button class="sw" data-t="matrix" title="Matrix"></button>
+    </div>
+
+    <div class="pill m-hide" id="pill"><span class="dot"></span><span id="status">booting…</span></div>
+    <button class="icon m-hide" id="fs-down" title="Smaller text">A−</button>
+    <button class="icon m-hide" id="fs-up" title="Larger text">A+</button>
+    <button class="icon m-hide" id="zen" title="Focus editor (F9)">⛶</button>
+    <button class="icon m-hide" id="full" title="Full screen (F11)">⤢</button>
+    <button class="icon m-hide" id="help-btn" title="Shortcuts (F1)">?</button>
+    <button class="btn ghost m-hide" id="clear-btn">Clear</button>
+    <button class="btn primary m-hide" id="run-btn">▶ Run <span class="kbd">⌘↵</span></button>
+  </header>
+
+  <div id="scrim"></div>
+
+  <main class="work">
+    <aside>
+      <div class="side-scroll">
+        <details class="sec" open>
+          <summary><span class="caret">▶</span>Tables<span class="spacer"></span><span class="badge" id="tcount">0</span></summary>
+          <div class="sec-body" id="schema">
+            <p class="empty">هنوز جدولی ساخته نشده. یک <code>CREATE TABLE</code> اجرا کن یا از دیتاست‌های آماده استفاده کن.</p>
+          </div>
+        </details>
+
+        <details class="sec" open>
+          <summary><span class="caret">▶</span>Sample data</summary>
+          <div class="sec-body" id="datasets">
+            <button class="item" data-load="university"><span class="t">university<small>دانشجو، درس و انتخاب واحد — تمرین JOIN و GROUP BY</small></span></button>
+            <button class="item" data-load="experiment"><span class="t">experiment<small>۶۰۰ مشاهده در دو گروه — میانگین، انحراف معیار، همبستگی</small></span></button>
+            <button class="item" data-load="weblog"><span class="t">weblog<small>۲۰۰۰ رویداد زمان‌دار — توابع پنجره‌ای و سری زمانی</small></span></button>
+          </div>
+        </details>
+
+        <details class="sec">
+          <summary><span class="caret">▶</span>Snippets</summary>
+          <div class="sec-body" id="snippets"></div>
+        </details>
+
+        <details class="sec">
+          <summary><span class="caret">▶</span>Settings</summary>
+          <div class="sec-body">
+            <button class="item" id="m-zen"><span class="t">حالت تمرکز روی ادیتور</span></button>
+            <button class="item" id="m-full"><span class="t">تمام‌صفحه</span></button>
+            <button class="item" id="m-help"><span class="t">میان‌برهای صفحه‌کلید</span></button>
+            <div style="display:flex;gap:8px;padding:8px 9px">
+              <button class="btn ghost" id="m-fs-down" style="flex:1;justify-content:center">A−</button>
+              <button class="btn ghost" id="m-fs-up" style="flex:1;justify-content:center">A+</button>
+            </div>
+          </div>
+        </details>
+      </div>
+    </aside>
+
+    <div class="split" id="split">
+      <section class="pane">
+        <div class="tabs" id="tabs"></div>
+        <div class="code">
+          <div id="gutter">1</div>
+          <div class="edit-wrap">
+            <pre id="hl" aria-hidden="true"></pre>
+            <textarea id="sql" wrap="off" spellcheck="false" autocomplete="off"
+                      autocapitalize="off" autocorrect="off"></textarea>
+          </div>
+        </div>
+      </section>
+
+      <div class="grab" id="grab"></div>
+
+      <section class="pane result">
+        <div class="pane-head">
+          <span>Result</span>
+          <span class="spacer"></span>
+          <span class="pill m-only" id="pill-m" style="display:none"></span>
+          <button class="btn ghost" id="csv-btn" style="height:28px;padding:0 11px;font-size:12px">CSV</button>
+          <span id="rows" style="font-family:var(--mono);font-size:12px">—</span>
+        </div>
+        <div id="output"><p class="msg">Pyodide و DuckDB در حال بارگذاری‌اند. بار اول چند ثانیه طول می‌کشد.</p></div>
+      </section>
+    </div>
+  </main>
+
+  <!-- mobile action bar -->
+  <div class="mbar">
+    <button class="btn primary" id="run-btn-m">▶ Run</button>
+    <button class="btn ghost" id="clear-btn-m">Clear</button>
+    <button class="icon" id="zen-m" title="Focus">⛶</button>
+  </div>
+</div>
+
+<dialog id="help">
+  <h2>Keyboard shortcuts</h2>
+  <dl>
+    <dt>Ctrl / ⌘ + Enter</dt><dd>اجرای کوئری</dd>
+    <dt>Ctrl / ⌘ + K</dt><dd>تب جدید</dd>
+    <dt>Ctrl / ⌘ + /</dt><dd>کامنت کردن خط</dd>
+    <dt>F9</dt><dd>حالت تمرکز</dd>
+    <dt>F11</dt><dd>تمام‌صفحه</dd>
+    <dt>Tab</dt><dd>چهار فاصله</dd>
+  </dl>
+  <button class="btn ghost" id="help-close">Close</button>
+</dialog>
+
+<script>
+/* ═════ UI layer ═════ */
+const $ = s => document.querySelector(s), store = localStorage, root = document.documentElement;
+const on = (el, ev, fn) => el && el.addEventListener(ev, fn);
+
+/* themes */
+function setTheme(name){
+  root.dataset.theme = name; store.setItem("ddb-theme", name);
+  document.querySelectorAll(".sw").forEach(b => b.classList.toggle("on", b.dataset.t === name));
+  const meta = document.querySelector('meta[name="theme-color"]');
+  meta.content = getComputedStyle(document.body).backgroundColor;
+}
+setTheme(store.getItem("ddb-theme") || "dark");
+on($("#swatches"), "click", e => { const b = e.target.closest(".sw"); if (b) setTheme(b.dataset.t); });
+
+/* text size */
+let fs = +(store.getItem("ddb-fs") || 15);
+const applyFs = () => { root.style.setProperty("--code-fs", fs + "px"); store.setItem("ddb-fs", fs); };
+applyFs();
+const bigger = () => { fs = Math.min(28, fs + 1); applyFs(); };
+const smaller = () => { fs = Math.max(11, fs - 1); applyFs(); };
+on($("#fs-up"), "click", bigger); on($("#m-fs-up"), "click", bigger);
+on($("#fs-down"), "click", smaller); on($("#m-fs-down"), "click", smaller);
+
+/* modes */
+const zen = () => document.body.classList.toggle("zen");
+const full = () => document.fullscreenElement ? document.exitFullscreen() : $("#app").requestFullscreen?.();
+on($("#zen"), "click", zen); on($("#zen-m"), "click", zen); on($("#m-zen"), "click", zen);
+on($("#full"), "click", full); on($("#m-full"), "click", full);
+const closeSide = () => document.body.classList.remove("side-open");
+on($("#side-toggle"), "click", () => document.body.classList.toggle("side-open"));
+on($("#scrim"), "click", closeSide);
+const openHelp = () => $("#help").showModal();
+on($("#help-btn"), "click", openHelp); on($("#m-help"), "click", openHelp);
+on($("#help-close"), "click", () => $("#help").close());
+
+/* mobile buttons mirror desktop ones */
+on($("#run-btn-m"), "click", () => $("#run-btn").click());
+on($("#clear-btn-m"), "click", () => $("#clear-btn").click());
+
+/* ── editor with offline SQL highlighting ── */
+const ta = $("#sql"), hl = $("#hl"), gutter = $("#gutter"), tabsEl = $("#tabs");
+const KW = ("select|from|where|group|by|order|having|limit|offset|join|inner|left|right|full|outer|cross|on|using|"
+ + "create|or|replace|table|view|temp|temporary|as|insert|into|values|update|set|delete|drop|alter|add|column|"
+ + "with|union|all|except|intersect|distinct|case|when|then|else|end|and|not|in|is|null|like|ilike|between|exists|"
+ + "asc|desc|over|partition|rows|range|preceding|following|current|row|window|cast|integer|varchar|double|boolean|"
+ + "date|timestamp|interval|primary|key|foreign|references|unique|default|check|if|copy|to|describe|show|explain|"
+ + "pragma|attach|sample|using|qualify|filter|returning|generate_series|recursive").split("|");
+const KWSET = new Set(KW);
+const esc = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+
+function highlight(src){
+  const re = /(--[^\n]*)|('(?:''|\\'|[^'])*')|("(?:[^"])*")|(\b\d+(?:\.\d+)?\b)|([A-Za-z_][A-Za-z_0-9]*)/g;
+  let out = "", last = 0, m;
+  while ((m = re.exec(src)) !== null){
+    out += esc(src.slice(last, m.index));
+    if (m[1]) out += `<span class="c">${esc(m[1])}</span>`;
+    else if (m[2] || m[3]) out += `<span class="s">${esc(m[2] || m[3])}</span>`;
+    else if (m[4]) out += `<span class="n">${esc(m[4])}</span>`;
+    else out += KWSET.has(m[5].toLowerCase()) ? `<span class="k">${esc(m[5])}</span>` : esc(m[5]);
+    last = m.index + m[0].length;
+  }
+  return out + esc(src.slice(last)) + "\n";
+}
+function paint(){
+  hl.innerHTML = highlight(ta.value);
+  const n = ta.value.split("\n").length;
+  gutter.textContent = Array.from({ length: n }, (_, i) => i + 1).join("\n");
+  syncScroll();
+}
+function syncScroll(){ hl.scrollTop = ta.scrollTop; hl.scrollLeft = ta.scrollLeft; gutter.scrollTop = ta.scrollTop; }
+on(ta, "scroll", syncScroll);
+
+/* tabs */
+const starter = `-- 🦆 DuckDB Studio
+
+
+CREATE OR REPLACE TABLE students (
+    id    INTEGER,
+    name  VARCHAR,
+    major VARCHAR,
+    gpa   DOUBLE
+);
+
+INSERT INTO students VALUES
+    (1, 'Ali',  'CS',    17.4),
+    (2, 'Sara', 'Stats', 18.9),
+    (3, 'Reza', 'CS',    15.2),
+    (4, 'Mina', 'Stats', 19.1);
+
+SELECT major,
+       count(*)                   AS n,
+       round(avg(gpa), 2)         AS mean_gpa,
+       round(stddev_samp(gpa), 2) AS sd
+FROM students
+GROUP BY major
+ORDER BY mean_gpa DESC;`;
+
+let tabs, active;
+try { tabs = JSON.parse(store.getItem("ddb-tabs")) || null; } catch { tabs = null; }
+if (!tabs || !tabs.length) tabs = [{ name: "query1.sql", sql: starter }];
+active = Math.min(+(store.getItem("ddb-active") || 0), tabs.length - 1);
+const save = () => { tabs[active].sql = ta.value; store.setItem("ddb-tabs", JSON.stringify(tabs)); store.setItem("ddb-active", active); };
+
+function drawTabs(){
+  tabsEl.innerHTML = "";
+  tabs.forEach((t, i) => {
+    const b = document.createElement("button");
+    b.className = "tab" + (i === active ? " on" : "");
+    b.innerHTML = `<span>${t.name}</span>` + (tabs.length > 1 ? `<span class="x" data-close="${i}">×</span>` : "");
+    b.onclick = e => {
+      if (e.target.dataset.close !== undefined){
+        save(); tabs.splice(+e.target.dataset.close, 1);
+        active = Math.max(0, Math.min(active, tabs.length - 1));
+        ta.value = tabs[active].sql; drawTabs(); paint(); save(); return;
+      }
+      save(); active = i; ta.value = t.sql; drawTabs(); paint(); save();
+    };
+    tabsEl.appendChild(b);
+  });
+  const add = document.createElement("button");
+  add.className = "tab"; add.textContent = "+"; add.title = "New tab";
+  add.onclick = newTab;
+  tabsEl.appendChild(add);
+}
+function newTab(){
+  save();
+  let i = tabs.length + 1;
+  while (tabs.some(t => t.name === `query${i}.sql`)) i++;
+  tabs.push({ name: `query${i}.sql`, sql: "" });
+  active = tabs.length - 1; ta.value = ""; drawTabs(); paint(); save(); ta.focus();
+}
+ta.value = tabs[active].sql;
+drawTabs(); paint();
+
+on(ta, "input", () => { paint(); save(); });
+on(ta, "keydown", e => {
+  if (e.key === "Tab"){
+    e.preventDefault();
+    const s = ta.selectionStart, en = ta.selectionEnd;
+    ta.value = ta.value.slice(0, s) + "    " + ta.value.slice(en);
+    ta.selectionStart = ta.selectionEnd = s + 4; paint(); save();
+  }
+  if ((e.ctrlKey || e.metaKey) && e.key === "/"){
+    e.preventDefault();
+    const v = ta.value, s = v.lastIndexOf("\n", ta.selectionStart - 1) + 1;
+    let en = v.indexOf("\n", ta.selectionEnd); if (en === -1) en = v.length;
+    const block = v.slice(s, en);
+    const done = block.split("\n").every(l => !l.trim() || l.trimStart().startsWith("--"));
+    const next = block.split("\n").map(l => done ? l.replace(/^(\s*)--\s?/, "$1") : (l.trim() ? "-- " + l : l)).join("\n");
+    ta.value = v.slice(0, s) + next + v.slice(en);
+    ta.selectionStart = s; ta.selectionEnd = s + next.length; paint(); save();
+  }
+});
+document.addEventListener("keydown", e => {
+  if ((e.ctrlKey || e.metaKey) && e.key === "Enter"){ e.preventDefault(); $("#run-btn").click(); }
+  if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "k"){ e.preventDefault(); newTab(); }
+  if (e.key === "F9"){ e.preventDefault(); zen(); }
+  if (e.key === "F11"){ e.preventDefault(); full(); }
+  if (e.key === "F1"){ e.preventDefault(); openHelp(); }
+});
+
+/* resizable split (mouse + touch) */
+const split = $("#split"), grab = $("#grab");
+const key = () => innerWidth <= 900 ? "--eh-m" : "--eh";
+const saved = store.getItem("ddb-eh-" + key()); if (saved) split.style.setProperty(key(), saved);
+let dragging = false;
+on(grab, "pointerdown", e => { dragging = true; grab.setPointerCapture(e.pointerId); });
+on(grab, "pointermove", e => {
+  if (!dragging) return;
+  const r = split.getBoundingClientRect();
+  const h = Math.min(Math.max(e.clientY - r.top, 100), r.height - 100) + "px";
+  split.style.setProperty(key(), h); store.setItem("ddb-eh-" + key(), h);
+});
+on(grab, "pointerup", () => dragging = false);
+
+/* snippets */
+const SNIPPETS = [
+  ["JOIN دو جدول", "SELECT s.name, c.title, e.score\nFROM enrollments e\nJOIN students s ON s.id = e.student_id\nJOIN courses  c ON c.id = e.course_id;"],
+  ["GROUP BY + HAVING", "SELECT major, count(*) AS n, avg(gpa) AS mean_gpa\nFROM students\nGROUP BY major\nHAVING count(*) > 1;"],
+  ["CTE (WITH)", "WITH per_student AS (\n    SELECT student_id, avg(score) AS avg_score\n    FROM enrollments\n    GROUP BY student_id\n)\nSELECT * FROM per_student WHERE avg_score > 15;"],
+  ["رتبه‌بندی (window)", "SELECT name, major, gpa,\n       rank() OVER (PARTITION BY major ORDER BY gpa DESC) AS rnk\nFROM students;"],
+  ["میانگین متحرک", "SELECT ts, ms,\n       avg(ms) OVER (ORDER BY ts ROWS BETWEEN 9 PRECEDING AND CURRENT ROW) AS moving_avg\nFROM weblog;"],
+  ["آمار توصیفی", "SELECT grp,\n       count(*)                   AS n,\n       avg(value)                 AS mean,\n       stddev_samp(value)         AS sd,\n       median(value)              AS median,\n       quantile_cont(value, 0.25) AS q1,\n       quantile_cont(value, 0.75) AS q3\nFROM experiment\nGROUP BY grp;"],
+  ["همبستگی و رگرسیون", "SELECT corr(x, y)           AS r,\n       regr_slope(y, x)     AS slope,\n       regr_intercept(y, x) AS intercept\nFROM experiment;"],
+  ["هیستوگرام", "SELECT floor(value / 5) * 5 AS bucket, count(*) AS freq\nFROM experiment\nGROUP BY bucket\nORDER BY bucket;"],
+  ["نمونه‌گیری تصادفی", "SELECT * FROM weblog USING SAMPLE 10 PERCENT (bernoulli);"],
+];
+SNIPPETS.forEach(([name, code]) => {
+  const b = document.createElement("button");
+  b.className = "item"; b.innerHTML = `<span class="t">${name}</span>`;
+  b.onclick = () => {
+    const s = ta.selectionStart;
+    const pad = (ta.value && !ta.value.slice(0, s).endsWith("\n")) ? "\n\n" : "";
+    ta.value = ta.value.slice(0, s) + pad + code + "\n" + ta.value.slice(ta.selectionEnd);
+    paint(); save(); closeSide(); ta.focus();
+  };
+  $("#snippets").appendChild(b);
+});
+
+/* helper used by the Python side */
+window.setEditorValue = text => { ta.value = text; paint(); save(); };
+window.closeSidebar = closeSide;
+</script>
+
+<!-- ═════ engine: PyScript + Pyodide + DuckDB (local) ═════ -->
+<script type="py" config='{"packages":["micropip","duckdb"], "pyodide_url":"./pyscript/pyodide/pyodide.js"}'>
+import html as H
+import time
+import duckdb
+from pyscript import document, when
+from js import encodeURIComponent, window
+
+con = duckdb.connect(":memory:")
+last = {"cols": [], "rows": []}
+NUMERIC = ("INT", "DEC", "DOUBLE", "FLOAT", "HUGE", "REAL", "NUMERIC", "BIG", "SMALL", "TINY")
+
+DATASETS = {
+    "university": """
+CREATE OR REPLACE TABLE students AS
+SELECT * FROM (VALUES
+    (1,'Ali Ahmadi','CS',1402),   (2,'Sara Karimi','Stats',1401),
+    (3,'Reza Mousavi','CS',1403), (4,'Mina Rahimi','Stats',1402),
+    (5,'Nima Sadeghi','CS',1401), (6,'Elham Nouri','Stats',1403)
+) t(id, name, major, entry_year);
+
+CREATE OR REPLACE TABLE courses AS
+SELECT * FROM (VALUES
+    (10,'Data Structures',3), (11,'Probability',3),
+    (12,'Databases',3),       (13,'Statistical Inference',4),
+    (14,'Algorithms',3)
+) t(id, title, credits);
+
+CREATE OR REPLACE TABLE enrollments AS
+SELECT s.id * 100 + c.id AS id, s.id AS student_id, c.id AS course_id,
+       round(10 + random() * 10, 2) AS score
+FROM students s CROSS JOIN courses c
+WHERE random() < 0.7;
+""",
+    "experiment": """
+CREATE OR REPLACE TABLE experiment AS
+SELECT i AS id,
+       CASE WHEN i % 2 = 0 THEN 'control' ELSE 'treatment' END AS grp,
+       round(50 + 10 * (random() + random() + random() - 1.5)
+             + CASE WHEN i % 2 = 0 THEN 0 ELSE 4 END, 3) AS value,
+       round(random() * 100, 3) AS x,
+       CAST(NULL AS DOUBLE)     AS y
+FROM range(1, 601) t(i);
+
+UPDATE experiment SET y = round(2.5 * x + 10 * (random() - 0.5) + 7, 3);
+""",
+    "weblog": """
+CREATE OR REPLACE TABLE weblog AS
+SELECT i AS id,
+       TIMESTAMP '2026-03-01 00:00:00' + INTERVAL (i * 37) SECOND AS ts,
+       (i % 97) + 1 AS user_id,
+       CASE WHEN random() < 0.6 THEN 'view'
+            WHEN random() < 0.8 THEN 'search' ELSE 'download' END AS action,
+       round(40 + random() * 400, 1) AS ms,
+       CASE WHEN random() < 0.05 THEN 500 ELSE 200 END AS status
+FROM range(1, 2001) t(i);
+""",
+}
+
+FOLLOWUP = {
+    "university": ("-- دیتاست university بارگذاری شد\n"
+                   "SELECT s.name, s.major, count(*) AS courses, round(avg(e.score), 2) AS avg_score\n"
+                   "FROM enrollments e JOIN students s ON s.id = e.student_id\n"
+                   "GROUP BY s.name, s.major\nORDER BY avg_score DESC;"),
+    "experiment": ("-- دیتاست experiment بارگذاری شد\n"
+                   "SELECT grp, count(*) AS n, round(avg(value), 3) AS mean,\n"
+                   "       round(stddev_samp(value), 3) AS sd, round(median(value), 3) AS median\n"
+                   "FROM experiment GROUP BY grp;"),
+    "weblog": ("-- دیتاست weblog بارگذاری شد\n"
+               "SELECT date_trunc('hour', ts) AS hour, count(*) AS hits, round(avg(ms), 1) AS avg_ms\n"
+               "FROM weblog GROUP BY hour ORDER BY hour LIMIT 24;"),
+}
+
+
+def el(i):
+    return document.getElementById(i)
+
+
+def status(msg, kind=""):
+    el("status").innerText = msg
+    el("pill").className = "pill " + kind
+
+
+def rows_label(txt):
+    el("rows").innerText = txt
+
+
+def split_statements(sql):
+    out, cur, quote = [], [], ""
+    i, n = 0, len(sql)
+    while i < n:
+        ch = sql[i]
+        if quote:
+            cur.append(ch)
+            if ch == quote:
+                quote = ""
+        elif ch in ("'", '"'):
+            quote = ch
+            cur.append(ch)
+        elif ch == "-" and i + 1 < n and sql[i + 1] == "-":
+            while i < n and sql[i] != "\n":
+                i += 1
+            cur.append("\n")
+        elif ch == ";":
+            s = "".join(cur).strip()
+            if s:
+                out.append(s)
+            cur = []
+        else:
+            cur.append(ch)
+        i += 1
+    s = "".join(cur).strip()
+    if s:
+        out.append(s)
+    return out
+
+
+def render(cols, rows, types):
+    numeric = [any(k in str(t).upper() for k in NUMERIC) for t in types] if types else [False] * len(cols)
+    h = ["<table><thead><tr>"]
+    for i, c in enumerate(cols):
+        t = f"<em>{H.escape(str(types[i]))}</em>" if types else ""
+        h.append(f"<th>{H.escape(str(c))}{t}</th>")
+    h.append("</tr></thead><tbody>")
+    for r in rows[:2000]:
+        h.append("<tr>")
+        for i, cell in enumerate(r):
+            if cell is None:
+                h.append('<td class="null">NULL</td>')
+            else:
+                cls = ' class="num"' if numeric[i] else ""
+                h.append(f"<td{cls}>{H.escape(str(cell))}</td>")
+        h.append("</tr>")
+    h.append("</tbody></table>")
+    return "".join(h)
+
+
+def refresh_schema():
+    box = el("schema")
+    try:
+        tables = [r[0] for r in con.execute(
+            "SELECT table_name FROM information_schema.tables "
+            "WHERE table_schema = 'main' ORDER BY table_name").fetchall()]
+    except Exception:
+        tables = []
+
+    el("tcount").innerText = str(len(tables))
+    if not tables:
+        box.innerHTML = ('<p class="empty">هنوز جدولی ساخته نشده. یک <code>CREATE TABLE</code> '
+                         'اجرا کن یا از دیتاست‌های آماده استفاده کن.</p>')
+        return
+
+    p = []
+    for t in tables:
+        try:
+            cnt = con.execute(f'SELECT count(*) FROM "{t}"').fetchone()[0]
+        except Exception:
+            cnt = "?"
+        cols = con.execute(
+            "SELECT column_name, data_type FROM information_schema.columns "
+            "WHERE table_schema = 'main' AND table_name = ? ORDER BY ordinal_position", [t]).fetchall()
+        s = H.escape(t)
+        p.append(f'<div class="tbl" data-table="{s}">'
+                 f'<button class="item"><span class="caret">▶</span><span class="t">{s}</span>'
+                 f'<span class="peek" data-peek="{s}">preview</span><span class="n">{cnt}</span></button>'
+                 f'<div class="cols">')
+        for c, dt in cols:
+            p.append(f'<div class="col">{H.escape(c)}<em>{H.escape(dt)}</em></div>')
+        p.append("</div></div>")
+    box.innerHTML = "".join(p)
+
+
+def execute(sql):
+    global last
+    out = el("output")
+    stmts = split_statements(sql)
+    if not stmts:
+        out.innerHTML = '<p class="msg">چیزی برای اجرا نیست. اول یک کوئری بنویس.</p>'
+        status("empty", "err")
+        rows_label("—")
+        return
+
+    status("running…")
+    t0 = time.time()
+    cols, rows, types, done = [], [], None, 0
+    try:
+        for stmt in stmts:
+            rel = con.sql(stmt)
+            done += 1
+            if rel is not None and rel.columns:
+                cols, types = rel.columns, rel.types
+                rows = rel.fetchall()
+    except Exception as e:
+        ms = int((time.time() - t0) * 1000)
+        out.innerHTML = (f'<p class="msg err">Statement {done + 1} of {len(stmts)} failed after {ms} ms\n\n'
+                         f'{H.escape(str(e))}</p>')
+        status("error", "err")
+        rows_label("—")
+        refresh_schema()
+        return
+
+    ms = int((time.time() - t0) * 1000)
+    if cols:
+        last = {"cols": list(cols), "rows": [list(r) for r in rows]}
+        out.innerHTML = render(cols, rows, types)
+        rows_label(f"{len(rows)} × {len(cols)}" + ("  (first 2000)" if len(rows) > 2000 else ""))
+        status(f"{ms} ms", "ok")
+    else:
+        last = {"cols": [], "rows": []}
+        out.innerHTML = f'<p class="msg">{done} statement(s) executed in {ms} ms. No result set.</p>'
+        rows_label("0 rows")
+        status(f"{ms} ms", "ok")
+    refresh_schema()
+
+
+@when("click", "#run-btn")
+def _run(event):
+    execute(el("sql").value.strip())
+
+
+@when("click", "#clear-btn")
+def _clear(event):
+    global last
+    last = {"cols": [], "rows": []}
+    el("output").innerHTML = '<p class="msg">Cleared.</p>'
+    rows_label("—")
+    status("ready", "ok")
+
+
+@when("click", "#schema")
+def _schema_click(event):
+    t = event.target
+    if not hasattr(t, "closest"):
+        return
+    peek = t.closest("[data-peek]")
+    if peek is not None:
+        window.closeSidebar()
+        execute('SELECT * FROM "%s" LIMIT 100' % peek.getAttribute("data-peek"))
+        return
+    box = t.closest(".tbl")
+    if box is not None:
+        box.classList.toggle("open")
+
+
+@when("click", "#datasets")
+def _load(event):
+    t = event.target
+    if not hasattr(t, "closest"):
+        return
+    btn = t.closest("[data-load]")
+    if btn is None:
+        return
+    name = btn.getAttribute("data-load")
+    execute(DATASETS[name])
+    window.setEditorValue(FOLLOWUP[name])
+    window.closeSidebar()
+
+
+@when("click", "#csv-btn")
+def _csv(event):
+    if not last["cols"]:
+        status("nothing to export", "err")
+        return
+
+    def q(v):
+        v = "" if v is None else str(v)
+        return '"' + v.replace('"', '""') + '"' if any(c in v for c in ',"\n') else v
+
+    body = [",".join(q(c) for c in last["cols"])]
+    body += [",".join(q(c) for c in r) for r in last["rows"]]
+    a = document.createElement("a")
+    a.href = "data:text/csv;charset=utf-8," + encodeURIComponent("\n".join(body))
+    a.download = "result.csv"
+    a.click()
+
+
+execute(el("sql").value.strip())
+</script>
+</body>
+</html>
