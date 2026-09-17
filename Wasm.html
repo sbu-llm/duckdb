@@ -17,10 +17,12 @@ if ('serviceWorker' in navigator) {
 }
 </script>
 
-<!-- DuckDB-WASM from CDN (cached by browser + jsdelivr) -->
-<script src="https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/dist/duckdb-mvp.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/dist/duckdb-browser-mvp.worker.min.js"></script>
-<script src="https://cdn.jsdelivr.net/npm/apache-arrow@14.0.1/Arrow.es2015.min.js"></script>
+<!-- ✅ DuckDB-WASM via ESM module (correct way) -->
+<script type="module">
+  import * as duckdb from "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/+esm";
+  window.duckdb = duckdb;
+  window.dispatchEvent(new Event("duckdb-ready"));
+</script>
 
 <style>
 /* ═══════════ themes ═══════════ */
@@ -581,7 +583,7 @@ body.zen .split{grid-template-rows:1fr 0 0}
 </dialog>
 
 <script>
-/* ═════ UI layer (same as PyScript version) ═════ */
+/* ═════ UI layer ═════ */
 const $ = s => document.querySelector(s), store = localStorage, root = document.documentElement;
 const on = (el, ev, fn) => el && el.addEventListener(ev, fn);
 
@@ -953,10 +955,10 @@ function setStatus(msg, kind=""){
 }
 
 let db = null, conn = null;
-let last = { cols: [], rows: [] };
+let last = { cols: [], rows: [], total: 0 };
 const NUMERIC = /INT|DEC|DOUBLE|FLOAT|REAL|HUGE|NUMERIC|BIG|SMALL|TINY/i;
 
-/* ── datasets (same as PyScript version, ported to SQL) ── */
+/* ── datasets ── */
 const DATASETS = {
   university: `
 CREATE OR REPLACE TABLE students AS
@@ -1019,7 +1021,7 @@ SELECT date_trunc('hour', ts) AS hour, count(*) AS hits, round(avg(ms), 1) AS av
 FROM weblog GROUP BY hour ORDER BY hour LIMIT 24;`,
 };
 
-/* ── split SQL statements (mirrors Python version) ── */
+/* ── split SQL statements ── */
 function splitStatements(sql){
   const out = []; let cur = "", quote = "";
   for (let i = 0; i < sql.length; i++){
@@ -1040,26 +1042,26 @@ function splitStatements(sql){
   return out;
 }
 
-/* ── arrow → html table ── */
+/* ── arrow → rows ── */
 function arrowToTable(arrowTable){
   const cols = arrowTable.schema.fields.map(f => f.name);
   const types = arrowTable.schema.fields.map(f => String(f.type));
-  const rowCount = arrowTable.numRows;
+  const total = arrowTable.numRows;
+  const maxRows = Math.min(total, 2000);
   const rows = [];
-  const maxRows = Math.min(rowCount, 2000);
   for (let i = 0; i < maxRows; i++){
     const r = [];
     for (let j = 0; j < cols.length; j++){
       let v = arrowTable.getChildAt(j).get(i);
-      if (v === undefined) v = null;
+      if (v === undefined || v === null) v = null;
       else if (typeof v === "bigint") v = v.toString();
-      else if (v instanceof Date) v = v.toISOString().replace("T", " ").replace("Z","").slice(0, 23);
-      else if (v && typeof v === "object" && v.constructor && v.constructor.name === "Vector") v = v.toArray().join(",");
+      else if (v instanceof Date) v = v.toISOString().replace("T", " ").replace("Z", "").slice(0, 23);
+      else if (typeof v === "object" && v.constructor && v.constructor.name === "Vector") v = Array.from(v.toArray()).join(",");
       r.push(v);
     }
     rows.push(r);
   }
-  return { cols, types, rows, total: rowCount };
+  return { cols, types, rows, total };
 }
 
 function renderTable({cols, types, rows}){
@@ -1111,7 +1113,7 @@ async function refreshSchema(){
       } catch {}
       const colsRes = await conn.query(
         `SELECT column_name, data_type FROM information_schema.columns
-         WHERE table_schema = 'main' AND table_name = ? ORDER BY ordinal_position`, [t]
+         WHERE table_schema = 'main' AND table_name = '${t.replace(/'/g, "''")}' ORDER BY ordinal_position`
       );
       const cols = colsRes.toArray();
       newSchema[t] = cols.map(c => c.column_name);
@@ -1149,15 +1151,15 @@ async function execute(sql){
   pushHistory(sql);
   const t0 = performance.now();
 
-  let cols = [], types = [], rows = [], done = 0;
+  let cols = [], types = [], rows = [], done = 0, total = 0;
   try {
     for (const stmt of stmts){
       const res = await conn.query(stmt);
       done++;
       if (res && res.schema && res.schema.fields.length){
         const t = arrowToTable(res);
-        cols = t.cols; types = t.types; rows = t.rows;
-        last = { cols, rows };
+        cols = t.cols; types = t.types; rows = t.rows; total = t.total;
+        last = { cols, rows, total };
       }
     }
   } catch (e){
@@ -1172,10 +1174,10 @@ async function execute(sql){
   const ms = Math.round(performance.now() - t0);
   if (cols.length){
     outEl.innerHTML = renderTable({cols, types, rows});
-    rowsEl.textContent = `${rows.length} × ${cols.length}` + (last.total > 2000 ? " (first 2000)" : "");
+    rowsEl.textContent = `${rows.length} × ${cols.length}` + (total > 2000 ? " (first 2000)" : "");
     setStatus(`${ms} ms`, "ok");
   } else {
-    last = { cols: [], rows: [] };
+    last = { cols: [], rows: [], total: 0 };
     outEl.innerHTML = `<p class="msg">${done} statement(s) executed in ${ms} ms. No result set.</p>`;
     rowsEl.textContent = "0 rows";
     setStatus(`${ms} ms`, "ok");
@@ -1191,7 +1193,7 @@ on($("#run-sel-btn"), "click", () => {
   execute(ta.value.slice(s, e).trim());
 });
 on($("#clear-btn"), "click", () => {
-  last = { cols: [], rows: [] };
+  last = { cols: [], rows: [], total: 0 };
   outEl.innerHTML = '<p class="msg">Cleared.</p>';
   rowsEl.textContent = "—";
   setStatus("ready", "ok");
@@ -1236,7 +1238,7 @@ on($("#csv-btn"), "click", () => {
   a.click();
 });
 
-/* ── file import (CSV / Parquet) ── */
+/* ── file import ── */
 function sanitizeTableName(filename){
   const base = filename.replace(/\.[^.]+$/, "");
   const t = base.replace(/[^A-Za-z0-9_]+/g, "_").replace(/^_+|_+$/g, "").toLowerCase();
@@ -1294,25 +1296,27 @@ on(fileInput, "change", async e => {
 /* ═══════════════════════════════════════════════════════════
    BOOTSTRAP DuckDB-WASM
    ═══════════════════════════════════════════════════════════ */
-(async () => {
+async function bootDuckDB(){
   try {
-    // jsuDeliver / getJsDelivrBundles — bundles from jsdelivr
-    const JSDELIVR_BUNDLES = {
-      mvp: {
-        mainModule: "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/dist/duckdb-mvp.wasm",
-        mainWorker: "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/dist/duckdb-browser-mvp.worker.js",
-      },
-      eh: {
-        mainModule: "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/dist/duckdb-eh.wasm",
-        mainWorker: "https://cdn.jsdelivr.net/npm/@duckdb/duckdb-wasm@1.28.0/dist/duckdb-browser-eh.worker.js",
-      },
-    };
-
-    const DUCKDB = window.duckdbwasm || window.duckdb;
-    if (!DUCKDB){
-      throw new Error("duckdb-wasm not loaded. Check the CDN script tag.");
+    // wait for the ESM module to attach window.duckdb
+    if (!window.duckdb){
+      await new Promise(resolve => {
+        if (window.duckdb) return resolve();
+        window.addEventListener("duckdb-ready", resolve, { once: true });
+        // fallback timeout
+        setTimeout(resolve, 15000);
+      });
     }
+
+    const DUCKDB = window.duckdb;
+    if (!DUCKDB || typeof DUCKDB.selectBundle !== "function"){
+      throw new Error("DuckDB-WASM module did not load correctly (window.duckdb missing).");
+    }
+
+    // jsdelivr bundles
+    const JSDELIVR_BUNDLES = DUCKDB.getJsDelivrBundles();
     const bundle = await DUCKDB.selectBundle(JSDELIVR_BUNDLES);
+
     const workerUrl = URL.createObjectURL(
       new Blob([`importScripts("${bundle.mainWorker}");`], { type: "text/javascript" })
     );
@@ -1325,9 +1329,6 @@ on(fileInput, "change", async e => {
 
     conn = await db.connect();
 
-    // preload extensions for CSV/Parquet (usually already bundled)
-    // await conn.query("INSTALL 'httpfs'; LOAD 'httpfs';");  // optional
-
     $("#run-btn").disabled = false;
     setStatus("ready", "ok");
     outEl.innerHTML = '<p class="msg">DuckDB-WASM is ready — press Run (or ⌘/Ctrl+Enter) to execute the query.</p>';
@@ -1337,7 +1338,13 @@ on(fileInput, "change", async e => {
     setStatus("engine load failed", "err");
     outEl.innerHTML = `<p class="msg err">Failed to load DuckDB-WASM:\n${esc(String(e.message || e))}</p>`;
   }
-})();
+}
+
+if (document.readyState === "loading"){
+  document.addEventListener("DOMContentLoaded", bootDuckDB);
+} else {
+  bootDuckDB();
+}
 </script>
 </body>
 </html>
